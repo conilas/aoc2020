@@ -35,8 +35,12 @@ parseLine line = splitT space line
 
 validateField :: String -> String -> Bool
 validateField value field = 
-  let eqV = (==) field . head . splitT ":" in 
-    eqV value
+  let extractV = (==) field . head . splitT ":" in 
+    if extractV value then
+      let extract = head . tail . splitT ":" in 
+        validateFieldFn field (extract value)
+      else
+        False
 
 -- validate line and return the next number decisor 
 -- fucc booleans
@@ -48,6 +52,55 @@ validateLine fields (y:ys) (x:xs) =
     validateLine fields fields xs 
   else 
     validateLine fields ys (x:xs)
+
+
+parseHgt measure value = 
+  case Text.unpack measure of 
+    "cm" -> 150 <= value && value <= 193 
+    "in" -> 50 <= value && value <= 76 
+    _ -> False
+
+parseHcl :: [Char] -> Bool
+parseHcl [] = True
+parseHcl (x:xs) = 
+  if present x ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'] then
+    parseHcl xs 
+  else
+    False
+
+interval min max value = 
+  let v = read value :: Int in
+    min <= v && v <= max
+
+validateFieldFn :: String -> String -> Bool 
+validateFieldFn _ value = False 
+validateFieldFn "byr" value = interval 1920 2002 value && 4 == length value
+validateFieldFn "iyr" value = interval 2010 2020 value && 4 == length value
+validateFieldFn "eyr" value = interval 2020 2030 value && 4 == length value
+
+validateFieldFn "hgt" value = 
+  let parsed = Text.decimal (Text.pack value) in
+    case parsed of
+    Right (value, measure)  -> parseHgt measure value 
+    _ -> False 
+
+validateFieldFn "hcl" value = 
+  let size = ((==) 7 . length) value in
+    let headOk = ((==) '#' . head) value in 
+      let parsed = parseHcl (tail value) in
+        parsed && size && headOk
+
+validateFieldFn "ecl" value = present value ["amb", "blu", "brn", "gry", "grn", "hzl", "oth"]
+
+validateFieldFn "pid" value = 
+  let size = ((==) 9 . length) value in 
+    case Text.decimal (Text.pack value) of
+      Left _ -> False
+      _ -> size
+
+
+present value (x:xs) = if x == value then True else present value xs 
+present value [] = False
 
 validate :: [[String]] -> Int -> Int
 validate (x:xs) acc = 
