@@ -46,3 +46,23 @@ parens = do
     return (ParentBag (color1 ++ color2) childrens)
   where
     letters = satisfy isLetter
+
+withName :: String -> Bag -> Bool
+withName name (ParentBag pName _) = name == pName
+withName name (Children pName) = name == pName
+
+hasShinny :: Bag -> Bool
+hasShinny (Children name) = name == "shinygold"
+hasShinny (ParentBag _ children) = 
+  case find (==True) (map hasShinny children) of
+    Just _ -> True
+    Nothing -> False
+
+expand :: Bag -> [Bag] -> [Bag] -> [Bag]
+expand bag allBags acc = 
+  case bag of 
+    (ParentBag _ children) -> concat (map (\z -> expand z allBags acc ++ [bag]) children)
+    (Children name) -> 
+      case find (withName name) allBags of 
+        Just insideBag -> expand insideBag allBags acc ++ [bag] ++ [insideBag] 
+        Nothing -> acc 

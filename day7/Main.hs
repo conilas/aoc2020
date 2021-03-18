@@ -16,10 +16,28 @@ printParsed (x:xs) = do
   print x
   printParsed xs
 
+flatten :: [Either ParseError a] -> [a] -> [a]
+flatten [] acc = acc
+flatten (x:xs) acc = 
+  case x of 
+    Right v -> flatten xs acc ++ [v]
+    Left _ -> flatten xs acc
+
+reduce :: Either ParseError [Bool] -> Bool
+reduce (Right quorum) = 
+  case find (==True) quorum of
+    Just _ -> True 
+    Nothing -> False
+reduce (Left _ ) = False
+
 main :: IO ()
 main = do
   ls <- fmap Text.lines (Text.readFile "input")
   let mapped = map ((regularParse parens) . Text.unpack) ls 
-  printParsed mapped
---  print (regularParse parens "plaid beige bags contain 3 drab magenta bags, 4 dull indigo bags.")
---  print (regularParse parens "plaid beige bags contain 3 drab magenta bags.")
+  let flattened = flatten mapped [] 
+-- magic: recursevily expand the bags and their children, accumulate it all together, find the ones that reach shinny, count 
+  let expanded = map (fmap  (\z -> expand z flattened [])) mapped
+  let shinny = map (fmap (map (hasShinny))) expanded 
+  print (length (filter (==True) (map reduce shinny)))
+
+--output: 131 gg
