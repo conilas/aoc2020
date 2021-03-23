@@ -14,7 +14,7 @@ import Data.Char (isLetter, isDigit)
 import Data.Map (Map)
 import Data.List
 
-data Bag = Children String | ParentBag String [Bag] deriving Show
+data Bag = Children Int String | ParentBag String [Bag] deriving Show
 
 whitespace :: Parser ()
 whitespace = void $ many $ oneOf " \n\t"
@@ -22,14 +22,14 @@ whitespace = void $ many $ oneOf " \n\t"
 children :: Parser Bag
 children = do
     void $ many1 whitespaceOrSeparator
-    void $ many1 digit
+    amount <- many1 digit
     whitespace
     color1 <- many1 letters 
     whitespace
     color2 <- many1 letters 
     whitespace
     _ <- try (string "bags") <|> string "bag"
-    return (Children (color1 ++ color2))
+    return (Children (read amount) (color1 ++ color2))
   where
     letters = satisfy isLetter
     whitespaceOrSeparator = satisfy (\x -> x == ' ' || x == ',') 
@@ -49,20 +49,27 @@ parens = do
 
 withName :: String -> Bag -> Bool
 withName name (ParentBag pName _) = name == pName
-withName name (Children pName) = name == pName
+withName name (Children _ pName) = name == pName
 
 hasShinny :: Bag -> Bool
-hasShinny (Children name) = name == "shinygold"
+hasShinny (Children _ name) = name == "shinygold"
 hasShinny (ParentBag _ children) = 
   case find (==True) (map hasShinny children) of
     Just _ -> True
     Nothing -> False
 
+filterParents :: [Bag] -> [Bag] -> [Bag]
+filterParents [] acc = acc
+filterParents (x:xs) acc = 
+  case x of 
+    ParentBag _ _ -> filterParents xs acc ++ [x]
+    Children _ _ -> filterParents xs acc
+
 expand :: Bag -> [Bag] -> [Bag] -> [Bag]
 expand bag allBags acc = 
   case bag of 
-    (ParentBag _ children) -> concat (map (\z -> expand z allBags acc ++ [bag]) children)
-    (Children name) -> 
+    (ParentBag _ children) -> concat (map (\z -> expand z allBags acc ) children)
+    (Children _ name) -> 
       case find (withName name) allBags of 
         Just insideBag -> expand insideBag allBags acc ++ [bag] ++ [insideBag] 
         Nothing -> acc 
